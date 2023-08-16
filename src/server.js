@@ -21,9 +21,11 @@ app.use(async (req, res, next) => {
     try {
       req.user = await admin.auth().verifyIdToken(authtoken);
     } catch (e) {
-      res.sendStatus(400);
+      return res.sendStatus(400);
     }
   }
+
+  req.user = req.user || {}
 
   next();
 });
@@ -82,7 +84,7 @@ app.post('/api/articles/:name/comments', async (req, res) => {
   const { email } = req.user
 
   await db.collection('articles').updateOne({ name }, {
-    $push: { comments: { postedBy, text } },
+    $push: { comments: { postedBy: email, text } },
   })
 
   const article = await db.collection('articles').findOne({ name });
