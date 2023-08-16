@@ -4,7 +4,7 @@ import fs from 'fs';
 import admin from 'firebase-admin';
 
 const credentials = JSON.parse(
-  fs.readFileSync('../credentials.json')
+  fs.readFileSync('./credentials.json')
 )
 
 admin.initializeApp({
@@ -43,18 +43,34 @@ app.get('/api/articles/:name', async (req, res) => {
   }
 })
 
+app.use((req, res, next) => {
+  if (req.user) {
+    next();
+  } else {
+    res.sendStatus(401);
+  }
+})
+
 app.put('/api/articles/:name/upvote', async (req, res) => {
   const { name } = req.params;
-
-  await db.collection('articles').updateOne({ name }, {
-    $inc: { upvotes: 1 },
-    // $set: { upvotes: 100 }, (would set the value)
-  })
+  const { uid } = req.user
 
   const article = await db.collection('articles').findOne({ name });
- 
+
   if (article) {
-    res.json(article)
+    const upvoteIds = article.upvoteIds || []
+    const canUpvote = article.canUpvote = uid && !upvoteIds.include(uid)
+
+    if (canUpvote) {
+      await db.collection('articles').updateOne({ name }, {
+        $inc: { upvotes: 1 },
+        $push: { upvoteIds: uid },
+        // $set: { upvotes: 100 }, (would set the value)
+      })
+    }
+
+    const updatedArticle = await db.collection('articles').findOne({ name });
+    res.json(updatedArticle)
   } else {
     res.send('That article doesn\'t exist')
   }
@@ -62,7 +78,8 @@ app.put('/api/articles/:name/upvote', async (req, res) => {
 
 app.post('/api/articles/:name/comments', async (req, res) => {
   const { name } = req.params;
-  const { postedBy, text } = req.body;
+  const { text } = req.body;
+  const { email } = req.user
 
   await db.collection('articles').updateOne({ name }, {
     $push: { comments: { postedBy, text } },
