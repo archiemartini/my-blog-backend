@@ -38,7 +38,7 @@ app.get('/api/articles/:name', async (req, res) => {
 
   if (article) {
     const upvoteIds = article.upvoteIds || []
-    article.canUpvote = uid && !upvoteIds.include(uid)
+    article.canUpvote = uid && !upvoteIds.includes(uid)
     res.json(article)
   } else {
     res.sendStatus(404);
@@ -61,13 +61,12 @@ app.put('/api/articles/:name/upvote', async (req, res) => {
 
   if (article) {
     const upvoteIds = article.upvoteIds || []
-    const canUpvote = article.canUpvote = uid && !upvoteIds.include(uid)
+    const canUpvote = article.canUpvote = uid && !upvoteIds.includes(uid)
 
     if (canUpvote) {
       await db.collection('articles').updateOne({ name }, {
         $inc: { upvotes: 1 },
         $push: { upvoteIds: uid },
-        // $set: { upvotes: 100 }, (would set the value)
       })
     }
 
